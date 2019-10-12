@@ -13,7 +13,7 @@ static const char TAG[] = "testable";
 
 bool testable_calls_mockable(void)
 {
-  ESP_LOGI(TAG, "%s() - Lets see if mockable_function() is real...", __FUNCTION__);
+  ESP_LOGI(TAG, "%s() - Lets see if I call the real function...", __FUNCTION__);
   
   if (0 == mockable_function()) {
     ESP_LOGI(TAG, "%s() - It seems real.", __FUNCTION__);
