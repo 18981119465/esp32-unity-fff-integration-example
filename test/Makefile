@@ -11,4 +11,4 @@ EXTRA_COMPONENT_DIRS := $(realpath ../components)
 #
 TEST_COMPONENTS ?= 
 
-include $(IDF_PATH)/make/project.make
+include $(IDF_PATH)/make/project.mk
