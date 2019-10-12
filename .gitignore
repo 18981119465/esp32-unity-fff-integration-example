@@ -1,0 +1,15 @@
+# Build dirs
+build
+
+# VS Code Settings
+.vscode
+
+# Eclipse setting
+.settings
+
+# MacOS directory files
+.DS_Store
+
+# Config files
+sdkconfig
+sdkconfig.old
