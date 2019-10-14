@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 #include <setjmp.h>
 
 #include "unity.h"
@@ -13,6 +14,7 @@
 static const char TAG[] = "[button]";
 DEFINE_FFF_GLOBALS;
 
+void *queue_buff = NULL;
 jmp_buf test_ctx;
 unsigned int cb_cnt = 0;
 
@@ -37,6 +39,11 @@ static void before_each(void)
 static void after_each(void)
 {
   FFF_RESET_HISTORY();
+  
+  if (NULL != queue_buff) {
+    free(queue_buff);
+    queue_buff = NULL;
+  }
 }
 
 static unsigned int get_first_call_idx(fff_function_t func)
@@ -223,15 +230,35 @@ TEST_CASE(
   const gpio_num_t test_gpio = 4;
   gpio_isr_t button_isr = NULL;
   
+  BaseType_t xQueueGenericSendFromISR_stub(
+    QueueHandle_t xQueue,
+    const void *const pvItemToQueue,
+    BaseType_t *const pxHigherPriorityTaskWoken,
+    const BaseType_t xCopyPosition)
+  {
+    if (NULL != pvItemToQueue && NULL != queue_buff) {
+      memcpy(queue_buff, pvItemToQueue, sizeof(gpio_num_t));
+      return pdTRUE;
+    }
+    else {
+      return pdFALSE;
+    }
+  }
+  
   before_each();
+  xQueueGenericSendFromISR_fake.custom_fake = xQueueGenericSendFromISR_stub;
+  queue_buff = calloc(1, sizeof(gpio_num_t));
   
   button_init(test_gpio);
   button_isr = gpio_isr_handler_add_fake.arg1_val;
   TEST_ASSERT_NOT_NULL(button_isr);
+  TEST_ASSERT_NOT_NULL(queue_buff);
+  
   button_isr((void *) test_gpio);
   
   TEST_ASSERT_EQUAL_INT(1, xQueueGenericSendFromISR_fake.call_count);
-  TEST_ASSERT_EQUAL_INT(test_gpio, xQueueGenericSendFromISR_fake.arg1_val);
+  TEST_ASSERT_NOT_NULL(xQueueGenericSendFromISR_fake.arg1_val);
+  TEST_ASSERT_EQUAL_MEMORY(&test_gpio, queue_buff, sizeof(gpio_num_t));
   
   after_each();
 }
@@ -296,19 +323,20 @@ TEST_CASE(
     TickType_t xTicksToWait,
     const BaseType_t xJustPeek)
   {
-    static unsigned int call_count = 0;
-    
-    call_count++;
+    static bool written = false;
     
     if (NULL != xQueue && NULL != pvBuffer) {
-      if (1 == call_count) {
+      if (!written) {
+        written = true;
         return pdTRUE;
       }
       else {
+        written = false;
         longjmp(test_ctx, 1);
       }
     }
     else {
+      written = false;
       longjmp(test_ctx, 2);
       return pdFALSE;
     }
