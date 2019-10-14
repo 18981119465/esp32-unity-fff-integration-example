@@ -40,13 +40,13 @@ static void button_task(void *pvParameters)
 static void IRAM_ATTR button_isr(void *arg)
 {
   gpio_num_t gpio_num = (gpio_num_t) arg;
-  xQueueSendFromISR(priv_state.queue_h, (void *) gpio_num, NULL);
+  xQueueSendFromISR(priv_state.queue_h, &gpio_num, NULL);
 }
 
 void button_init(gpio_num_t butt_gpio)
 {
   gpio_config_t cfg = {
-    .pin_bit_mask = 1U << butt_gpio,
+    .pin_bit_mask = 1ULL << butt_gpio,
     .mode = GPIO_MODE_INPUT,
     .intr_type = GPIO_INTR_NEGEDGE
   };
@@ -60,7 +60,7 @@ void button_init(gpio_num_t butt_gpio)
   xTaskCreatePinnedToCore(
     &button_task,
     "button_task",
-    1024,
+    2048,
     NULL,
     2,
     &priv_state.task_h,
