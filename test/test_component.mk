@@ -70,13 +70,13 @@ $(patsubst %.c,%.o,$(filter %.c,$(COMPONENT_SRCS))): %.o: $(COMPONENT_PATH)/%.c 
 	$(CC) $(CFLAGS) $(CPPFLAGS) $(addprefix -I ,$(COMPONENT_INCLUDES)) $(addprefix -I ,$(MOCK_INCLUDEDIRS)) -I $(abspath $(dir $<)) -L. $(if $(MOCK_LIBRARY),-L$(BUILD_DIR_BASE)/mocks) -Wl,-r,--exclude-libs,ALL $(abspath $<) -l$(PARENT_COMPONENT_NAME) $(if $(MOCK_LIBRARY),-lmocks) -o $@
 	$(OBJCOPY) --localize-hidden $@
 
-$(patsubst %.cpp,%.o,$(filter %.cpp,$(COMPONENT_SRCS))): %.o: $(COMPONENT_PATH)/%.cpp $(PARENT_COMPONENT_LIBRARY) $(TEST_COMPONENT_MAKEFILE_DEPS)
+$(patsubst %.cpp,%.o,$(filter %.cpp,$(COMPONENT_SRCS))): %.o: $(COMPONENT_PATH)/%.cpp $(PARENT_COMPONENT_LIBRARY) $(if $(MOCK_LIBRARY),$(BUILD_DIR_BASE)/mocks/$(MOCK_LIBRARY)) $(TEST_COMPONENT_MAKEFILE_DEPS)
 	@echo CXX $(patsubst $(PWD)/%,%,$(CURDIR))/$@
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(addprefix -I ,$(COMPONENT_INCLUDES)) $(addprefix -I ,$(MOCK_INCLUDEDIRS)) -I $(abspath $(dir $<)) -L. $(if $(MOCK_LIBRARY),-L$(BUILD_DIR_BASE)/mocks) -Wl,-r,--exclude-libs,ALL $(abspath $<) -l$(PARENT_COMPONENT_NAME) $(if $(MOCK_LIBRARY),-lmocks) -o $@
 	$(OBJCOPY) --localize-hidden $@
 
-$(patsubst %.cc,%.o,$(filter %.cc,$(COMPONENT_SRCS))): %.o: $(COMPONENT_PATH)/%.cc $(PARENT_COMPONENT_LIBRARY) $(TEST_COMPONENT_MAKEFILE_DEPS)
+$(patsubst %.cc,%.o,$(filter %.cc,$(COMPONENT_SRCS))): %.o: $(COMPONENT_PATH)/%.cc $(PARENT_COMPONENT_LIBRARY) $(if $(MOCK_LIBRARY),$(BUILD_DIR_BASE)/mocks/$(MOCK_LIBRARY)) $(TEST_COMPONENT_MAKEFILE_DEPS)
 	@echo CXX $(patsubst $(PWD)/%,%,$(CURDIR))/$@
 	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(addprefix -I ,$(COMPONENT_INCLUDES)) $(addprefix -I ,$(MOCK_INCLUDEDIRS)) -I $(abspath $(dir $<)) -L. $(if $(MOCK_LIBRARY),-L$(BUILD_DIR_BASE)/mocks) -Wl,-r,--exclude-libs,ALL $(abspath $<) -l$(PARENT_COMPONENT_NAME) $(if $(MOCK_LIBRARY),-lmocks) -o $@
