@@ -12,8 +12,8 @@ DEFINE_FFF_GLOBALS;
 
 
 TEST_CASE(
-  "testable_calls_mockable() "
-  "should return true if mockable_function() returns zero",
+  "testable_calls_mockable(): "
+  "Should return true if mockable_function() returns zero",
   TAG)
 {
   RESET_FAKE(mockable_function);
@@ -22,8 +22,8 @@ TEST_CASE(
 }
 
 TEST_CASE(
-  "testable_calls_mockable() "
-  "should return false if mockable_function() returns non-zero",
+  "testable_calls_mockable(): "
+  "Should return false if mockable_function() returns non-zero",
   TAG)
 {
   RESET_FAKE(mockable_function);
