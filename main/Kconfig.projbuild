@@ -1,0 +1,10 @@
+menu "Example Configuration"
+
+  config BUTTON_GPIO
+    int "Button GPIO number"
+    range 0 39
+    default 34
+    help
+      GPIO number (IOxx) of the button that will trigger events.
+
+endmenu
