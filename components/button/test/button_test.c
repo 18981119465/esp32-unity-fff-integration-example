@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 
 #include "unity.h"
 #include "fff.h"
@@ -11,6 +12,9 @@
 
 static const char TAG[] = "[button]";
 DEFINE_FFF_GLOBALS;
+
+jmp_buf test_ctx;
+unsigned int cb_cnt = 0;
 
 
 static void reset_fakes(void)
@@ -27,6 +31,7 @@ static void reset_fakes(void)
 static void before_each(void)
 {
   reset_fakes();
+  cb_cnt = 0;
 }
 
 static void after_each(void)
@@ -227,6 +232,174 @@ TEST_CASE(
   
   TEST_ASSERT_EQUAL_INT(1, xQueueGenericSendFromISR_fake.call_count);
   TEST_ASSERT_EQUAL_INT(test_gpio, xQueueGenericSendFromISR_fake.arg1_val);
+  
+  after_each();
+}
+
+TEST_CASE(
+  "button_task(): "
+  "Should should wait on queue for button event",
+  TAG
+)
+{
+  const gpio_num_t test_gpio = 4;
+  StaticQueue_t dummy_queue;
+  TaskFunction_t button_task = NULL;
+  void *task_arg = NULL;
+  
+  BaseType_t xQueueGenericReceive_stub(
+    QueueHandle_t xQueue,
+    void *const pvBuffer,
+    TickType_t xTicksToWait,
+    const BaseType_t xJustPeek)
+  {
+    longjmp(test_ctx, 1);
+  }
+  
+  before_each();
+  xQueueGenericCreate_fake.return_val = &dummy_queue;
+  xQueueGenericReceive_fake.custom_fake = xQueueGenericReceive_stub;
+  
+  button_init(test_gpio);
+  button_task = xTaskCreatePinnedToCore_fake.arg0_val;
+  task_arg = xTaskCreatePinnedToCore_fake.arg3_val;
+  TEST_ASSERT_NOT_NULL(button_task);
+  
+  if (0 == setjmp(test_ctx)) {
+    button_task(task_arg);
+  }
+  else {
+    TEST_ASSERT_EQUAL_INT(1, xQueueGenericReceive_fake.call_count);
+    TEST_ASSERT_NOT_NULL(xQueueGenericReceive_fake.arg0_val);
+    TEST_ASSERT_NOT_NULL(xQueueGenericReceive_fake.arg1_val);
+    TEST_ASSERT_EQUAL_INT(portMAX_DELAY, xQueueGenericReceive_fake.arg2_val);
+  }
+  
+  after_each();
+}
+
+TEST_CASE(
+  "button_task(): "
+  "Should call registered callback when receive a button event",
+  TAG
+)
+{
+  const gpio_num_t test_gpio = 4;
+  StaticQueue_t dummy_queue;
+  TaskFunction_t button_task = NULL;
+  void *task_arg = NULL;
+  int ret;
+  
+  BaseType_t xQueueGenericReceive_stub(
+    QueueHandle_t xQueue,
+    void *const pvBuffer,
+    TickType_t xTicksToWait,
+    const BaseType_t xJustPeek)
+  {
+    static unsigned int call_count = 0;
+    
+    call_count++;
+    
+    if (NULL != xQueue && NULL != pvBuffer) {
+      if (1 == call_count) {
+        return pdTRUE;
+      }
+      else {
+        longjmp(test_ctx, 1);
+      }
+    }
+    else {
+      longjmp(test_ctx, 2);
+      return pdFALSE;
+    }
+  }
+  
+  void dummy_cb(void)
+  {
+    cb_cnt++;
+  }
+  
+  before_each();
+  xQueueGenericCreate_fake.return_val = &dummy_queue;
+  xQueueGenericReceive_fake.custom_fake = xQueueGenericReceive_stub;
+  
+  button_register_cb(&dummy_cb);
+  button_init(test_gpio);
+  button_task = xTaskCreatePinnedToCore_fake.arg0_val;
+  task_arg = xTaskCreatePinnedToCore_fake.arg3_val;
+  TEST_ASSERT_NOT_NULL(button_task);
+  
+  ret = setjmp(test_ctx);
+  if (0 == ret) {
+    button_task(task_arg);
+  }
+  else {
+    TEST_ASSERT_EQUAL_INT(1, ret);
+    TEST_ASSERT_EQUAL_UINT(1, cb_cnt);
+  }
+  
+  after_each();
+}
+
+TEST_CASE(
+  "button_task(): "
+  "Should not call registered callback when there is any button event",
+  TAG
+)
+{
+  const gpio_num_t test_gpio = 4;
+  StaticQueue_t dummy_queue;
+  TaskFunction_t button_task = NULL;
+  void *task_arg = NULL;
+  int ret;
+  
+  BaseType_t xQueueGenericReceive_stub(
+    QueueHandle_t xQueue,
+    void *const pvBuffer,
+    TickType_t xTicksToWait,
+    const BaseType_t xJustPeek)
+  {
+    static unsigned int call_count = 0;
+    
+    call_count++;
+    
+    if (NULL != xQueue && NULL != pvBuffer) {
+      if (1 == call_count) {
+        return pdFALSE;
+      }
+      else {
+        longjmp(test_ctx, 1);
+      }
+    }
+    else {
+      longjmp(test_ctx, 2);
+      return pdFALSE;
+    }
+  }
+  
+  void dummy_cb(void)
+  {
+    cb_cnt++;
+  }
+  
+  before_each();
+  xQueueGenericCreate_fake.return_val = &dummy_queue;
+  xQueueGenericReceive_fake.custom_fake = xQueueGenericReceive_stub;
+  
+  button_register_cb(&dummy_cb);
+  button_init(test_gpio);
+  button_task = xTaskCreatePinnedToCore_fake.arg0_val;
+  task_arg = xTaskCreatePinnedToCore_fake.arg3_val;
+  TEST_ASSERT_NOT_NULL(button_task);
+  
+  ret = setjmp(test_ctx);
+  if (0 == ret) {
+    button_task(task_arg);
+  }
+  else {
+    TEST_ASSERT_EQUAL_INT(1, ret);
+    TEST_ASSERT_EQUAL_UINT(0, cb_cnt);
+  }
   
   after_each();
 }
