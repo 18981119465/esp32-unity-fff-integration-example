@@ -9,6 +9,6 @@ EXTRA_COMPONENT_DIRS := $(realpath ../components)
 # This can be overriden from the command line
 # (e.g. 'make TEST_COMPONENTS=xxxx flash monitor')
 #
-TEST_COMPONENTS ?= 
+TEST_COMPONENTS ?= mockable testable button
 
 include $(IDF_PATH)/make/project.mk
