@@ -16,16 +16,24 @@ static const char TAG[] = "button";
 static struct {
   TaskHandle_t task_h;
   QueueHandle_t queue_h;
+  button_cb_t *butt_cb;
 } priv_state = {
   .task_h = NULL,
-  .queue_h = NULL
+  .queue_h = NULL,
+  .butt_cb = NULL
 };
 
 
 static void button_task(void *pvParameters)
 {
+  gpio_num_t gpio_num;
+  
   while (1) {
-    vTaskSuspend(NULL);
+    if (pdTRUE == xQueueReceive(priv_state.queue_h, &gpio_num, portMAX_DELAY)) {
+      if (NULL != priv_state.butt_cb) {
+        priv_state.butt_cb();
+      }
+    }
   }
 }
 
@@ -58,4 +66,9 @@ void button_init(gpio_num_t butt_gpio)
     &priv_state.task_h,
     tskNO_AFFINITY
   );
+}
+
+void button_register_cb(button_cb_t *cb)
+{
+  priv_state.butt_cb = cb;
 }
