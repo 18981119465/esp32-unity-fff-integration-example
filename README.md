@@ -10,22 +10,22 @@ illustrates a way to integrate test doubles into your application's unit tests.
 # Contents
 - [Requirements](#requirements)
 - [Example layout](#example-layout)
+- [Unit tests for components](#unit-tests-for-components)
+  - [Tests without test doubles](#tests-without-test-doubles)
+  - [Tests with own test doubles](#tests-with-own-test-doubles)
+  - [Tests with shared test doubles](#tests-with-shared-test-doubles)
+- [Shared test doubles](#shared-test-doubles)
+- [How to add this to your project](#how-to-add-this-to-your-project)
 - [How to run the example](#how-to-run-the-example)
   - [Run **application** project](#run-application-project)
-    - [Configure](#configure)
-    - [Build and flash](#build-and-flash)
-    - [Sample output](#sample-output)
   - [Run **test** project](#run-test-project)
-    - [Configure](#configure-1)
-    - [Build and flash](#build-and-flash-1)
-    - [Sample output](#sample-output-1)
 
 ## Requirements
 For running this example you will need the following:
 - [ESP32 toolchain](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html#setup-toolchain)
 - [ESP-IDF v3.3](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html#get-esp-idf)
 - Target hardware with at least one GPIO that can be used as digital input. 
-  Have on hand this GPIO number, you will need it to build the project.
+  Have on hand this GPIO number, you will need it to build the application project.
 
 ## Example layout
 The example follows the common ESP-IDF based project layout, with custom components 
@@ -55,8 +55,8 @@ esp32-unity-fff-demo        - Application project directory
   + main                    - Application project main component
   - test                    - Test project directory
     - components            - Test project components
-      + fff
-      + mocks
+      + fff                 - Fake Function Framework component directory
+      + mocks               - Shared test doubles component
     + main                  - Test project main component
     Makefile                - Test project makefile
     sdkconfig.defaults      - Test project default settings
@@ -66,6 +66,188 @@ esp32-unity-fff-demo        - Application project directory
   sdkconfig.defaults        - Application project default settings
   UNLICENSE
 ```
+
+## Unit tests for components
+
+Each component to be tested has a `test/` folder inside containing tests source files 
+and component makefile.
+
+### Tests without test doubles
+
+Components that do not require test doubles are the simplest ones and follow this structure:
+
+```
+esp32-unity-fff-demo        - Application project directory
+  - components              - Application project components
+    + button
+    - mockable
+      + include             - Component header files directory
+      - test                - Component tests directory
+        component.mk        - Component tests makefile
+        mockable_test.c     - Component tests source file
+      component.mk          - Component makefile
+      mockable.c            - Component source file
+    + testable
+  + main                    - Application project main component
+  + test                    - Test project directory
+  Makefile                  - Application project makefile
+  README.md                 - This README
+  sdkconfig.defaults        - Application project default settings
+  UNLICENSE
+```
+
+Its `component.mk` file (the one inside `test/` folder) just contains:
+
+```
+COMPONENT_ADD_LDFLAGS = -Wl,--whole-archive -l$(COMPONENT_NAME) -Wl,--no-whole-archive
+```
+
+### Tests with own test doubles
+
+Components that require test doubles, but those doubles are not require for other 
+components tests, follow this structure:
+
+```
+esp32-unity-fff-demo        - Application project directory
+  - components              - Application project components
+    + button
+    + mockable
+    + testable
+      + include             - Component header files directory
+      - test                - Component tests directory
+        - mocks             - Require test doubles directory
+          + include         - Test doubles header files directory
+          mockable_mocks.c  - Test doubles source file
+        component.mk        - Component tests makefile
+        testable_test.c     - Component tests source file
+      component.mk          - Component makefile
+      testable.c            - Component source file
+  + main                    - Application project main component
+  + test                    - Test project directory
+  Makefile                  - Application project makefile
+  README.md                 - This README
+  sdkconfig.defaults        - Application project default settings
+  UNLICENSE
+```
+
+The `component.mk` file inside `test/` folder should contain:
+
+```
+COMPONENT_OWNBUILDTARGET := 1
+COMPONENT_OWNCLEANTARGET := 1
+COMPONENT_ADD_LDFLAGS = -Wl,--whole-archive -l$(COMPONENT_NAME) -Wl,--no-whole-archive
+
+# Source directories with mocks for this test component. 
+export MOCK_SRCDIRS := mocks
+
+# Pass this component source dirs to sub-make
+export COMPONENT_SRCDIRS
+
+.PHONY: build
+build:
+	$(MAKE) -C $(COMPONENT_BUILD_DIR) -f $(PROJECT_PATH)/test_component.mk build
+
+.PHONY: clean
+clean:
+	$(MAKE) -C $(COMPONENT_BUILD_DIR) -f $(PROJECT_PATH)/test_component.mk clean
+```
+
+The above tells the build system to use custom build and clean targets for 
+component tests to allow linking to test doubles instead of real dependencies.
+
+### Tests with shared test doubles
+
+Components that require test doubles that are common to other components tests, 
+follow the same structure as those that do not require test doubles at all:
+
+```
+esp32-unity-fff-demo        - Application project directory
+  - components              - Application project components
+    + button
+      + include             - Component header files directory
+      - test                - Component tests directory
+        component.mk        - Component tests makefile
+        button_test.c       - Component tests source file
+      component.mk          - Component makefile
+      button.c              - Component source file
+    + mockable
+    + testable
+  + main                    - Application project main component
+  + test                    - Test project directory
+  Makefile                  - Application project makefile
+  README.md                 - This README
+  sdkconfig.defaults        - Application project default settings
+  UNLICENSE
+```
+
+The `component.mk` file inside `test/` folder is very similar to that of tests 
+that has own test doubles, but the variable `MOCK_SRCDIRS` should be left empty 
+or can be omitted.
+
+```
+COMPONENT_OWNBUILDTARGET := 1
+COMPONENT_OWNCLEANTARGET := 1
+COMPONENT_ADD_LDFLAGS = -Wl,--whole-archive -l$(COMPONENT_NAME) -Wl,--no-whole-archive
+
+# Source directories with mocks for this test component. 
+export MOCK_SRCDIRS := 
+
+# Pass this component source dirs to sub-make
+export COMPONENT_SRCDIRS
+
+.PHONY: build
+build:
+	$(MAKE) -C $(COMPONENT_BUILD_DIR) -f $(PROJECT_PATH)/test_component.mk build
+
+.PHONY: clean
+clean:
+	$(MAKE) -C $(COMPONENT_BUILD_DIR) -f $(PROJECT_PATH)/test_component.mk clean
+```
+
+## Shared test doubles
+
+These are part of a component named `mocks` of the **test** project:
+
+```
+esp32-unity-fff-demo        - Application project directory
+  + components              - Application project components
+  + main                    - Application project main component
+  - test                    - Test project directory
+    - components            - Test project components
+      + fff                 - Fake Function Framework component directory
+      - mocks               - Shared test doubles component
+        + include           - Test doubles header files directory
+        component.mk        - Test doubles component makefile
+        freertos_mocks.c    - Test doubles source file (FreeRTOS doubles)
+        gpio_mocks.c        - Test doubles source file (GPIO doubles)
+    + main                  - Test project main component
+    Makefile                - Test project makefile
+    sdkconfig.defaults      - Test project default settings
+    test_component.mk       - Custom makefile for tests components using test doubles.
+  Makefile                  - Application project makefile
+  README.md                 - This README
+  sdkconfig.defaults        - Application project default settings
+  UNLICENSE
+```
+
+The `component.mk` file of the shared test doubles component should contain:
+
+```
+# Make mocked symbols hidden.
+CFLAGS += -fvisibility=hidden
+CXXFLAGS += -fvisibility=hidden
+
+# Do not link with mocks lib
+COMPONENT_ADD_LDFLAGS := 
+```
+
+## How to add this to your project
+
+You will need to copy the `test_component.mk` file inside this **test** project 
+folder to your **test** project folder and add test doubles source files for 
+your components tests according to the cases described above. To write your 
+test doubles and unit tests, you may want to take a look into the source files 
+of this example.
 
 ## How to run the example
 
