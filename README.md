@@ -7,6 +7,19 @@ testing applications developed with [ESP-IDF](https://github.com/espressif/esp-i
 This example makes use of the Unity component already present on ESP-IDF and 
 illustrates a way to integrate test doubles into your application's unit tests.
 
+# Contents
+- [Requirements](#requirements)
+- [Example layout](#example-layout)
+- [How to run the example](#how-to-run-the-example)
+  - [Run **application** project](#run-application-project)
+    - [Configure](#configure)
+    - [Build and flash](#build-and-flash)
+    - [Sample output](#sample-output)
+  - [Run **test** project](#run-test-project)
+    - [Configure](#configure-1)
+    - [Build and flash](#build-and-flash-1)
+    - [Sample output](#sample-output-1)
+
 ## Requirements
 For running this example you will need the following:
 - [ESP32 toolchain](https://docs.espressif.com/projects/esp-idf/en/v3.3/get-started/index.html#setup-toolchain)
@@ -175,7 +188,7 @@ Enter test for running.
 
 ```
 
-* Running tests with tag [mockable]:
+- Running tests with tag [mockable]:
 
 ```
 Running tests matching '[mockable]'...
@@ -188,7 +201,7 @@ I (5039) mockable: I'm the real mockable_function()!
 OK
 ```
 
-* Running tests with tag [testable]:
+- Running tests with tag [testable]:
 
 ```
 Running tests matching '[testable]'...
@@ -206,7 +219,7 @@ W (10049) testable: testable_calls_mockable() - It seems it has been mocked!
 OK
 ```
 
-* Running tests with tag [button]:
+- Running tests with tag [button]:
 
 ```
 Running tests matching '[button]'...
