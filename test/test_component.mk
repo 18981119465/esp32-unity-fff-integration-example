@@ -42,6 +42,7 @@ MOCK_OBJS += $(patsubst %.cpp,%.o,$(filter %.cpp,$(MOCK_SRCS)))
 MOCK_OBJS += $(patsubst %.cc,%.o,$(filter %.cc,$(MOCK_SRCS)))
 
 MOCK_DEPS := $(MOCK_OBJS:.o=.d)
+PRIV_MOCK_LIBRARY := libprivmocks.a
 
 TEST_COMPONENT_MAKEFILE_DEPS := $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) $(PROJECT_PATH)/test_component.mk
 
@@ -50,7 +51,7 @@ TEST_COMPONENT_MAKEFILE_DEPS := $(COMMON_MAKEFILES) $(COMPONENT_MAKEFILE) $(PROJ
 build: $(COMPONENT_LIBRARY)
 
 .PHONY: clean
-clean: CLEAN_FILES := $(COMPONENT_LIBRARY) $(COMPONENT_OBJS) $(COMPONENT_DEPS) $(MOCK_OBJS) $(MOCK_DEPS) component_project_vars.mk
+clean: CLEAN_FILES := $(COMPONENT_LIBRARY) $(COMPONENT_OBJS) $(COMPONENT_DEPS) $(MOCK_OBJS) $(PRIV_MOCK_LIBRARY) $(MOCK_DEPS) component_project_vars.mk
 clean:
 	@echo RM $(CLEAN_FILES)
 	rm -f $(CLEAN_FILES)
@@ -103,10 +104,15 @@ $(PARENT_COMPONENT_LIBRARY): $(PARENT_COMPONENT_MOCK_OBJS)
 	rm -f $@
 	$(AR) $(ARFLAGS) $@ $(PARENT_COMPONENT_MOCK_OBJS)
 
-$(PARENT_COMPONENT_MOCK_OBJS): mocked/%.o: real/%.o $(MOCK_OBJS)
+$(PRIV_MOCK_LIBRARY): $(MOCK_OBJS)
+	@echo AR $(patsubst $(PWD)/%,%,$(CURDIR))/$@
+	rm -f $@
+	$(AR) $(ARFLAGS) $@ $(MOCK_OBJS)
+
+$(PARENT_COMPONENT_MOCK_OBJS): mocked/%.o: real/%.o $(PRIV_MOCK_LIBRARY)
 	@echo LD $(patsubst $(PWD)/%,%,$(CURDIR))/$@
 	@mkdir -p $(@D)
-	$(LD) -r $(MOCK_OBJS) $< -o $@
+	$(LD) -r -L. $< -l:$(PRIV_MOCK_LIBRARY) -o $@
 
 real/%.o: $(PARENT_COMPONENT_BUILD_DIR)/$(PARENT_COMPONENT_LIBRARY)
 	@echo AR x $(patsubst $(PWD)/%,%,$(CURDIR))/$@
